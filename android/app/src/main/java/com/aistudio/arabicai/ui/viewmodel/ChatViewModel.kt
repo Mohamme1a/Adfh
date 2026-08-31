@@ -2,6 +2,7 @@ package com.aistudio.arabicai.ui.viewmodel
 
 import android.app.Application
 import android.content.Context
+import android.graphics.Bitmap
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.room.Room
@@ -13,6 +14,31 @@ import com.aistudio.arabicai.data.repository.GeminiRepository
 import com.aistudio.arabicai.ui.screens.ToolType
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import java.util.UUID
+
+data class GeneratedImageItem(
+    val id: String = UUID.randomUUID().toString(),
+    val prompt: String,
+    val bitmap: Bitmap,
+    val base64: String? = null,
+    val description: String? = null,
+    val timestamp: Long = System.currentTimeMillis(),
+    val isEdited: Boolean = false
+)
+
+data class ImageGenUiState(
+    val prompt: String = "",
+    val inputBitmap: Bitmap? = null,
+    val generatedBitmap: Bitmap? = null,
+    val generatedBase64: String? = null,
+    val generatedDescription: String? = null,
+    val aspectRatio: String = "1:1",
+    val imageSize: String = "1K",
+    val isLoading: Boolean = false,
+    val errorMessage: String? = null,
+    val successMessage: String? = null,
+    val history: List<GeneratedImageItem> = emptyList()
+)
 
 class ChatViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -48,6 +74,10 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _apiKey = MutableStateFlow(prefs.getString("gemini_key", "") ?: "")
     val apiKey: StateFlow<String> = _apiKey.asStateFlow()
+
+    // Image Generation State
+    private val _imageGenState = MutableStateFlow(ImageGenUiState())
+    val imageGenState: StateFlow<ImageGenUiState> = _imageGenState.asStateFlow()
 
     init {
         geminiRepo.setApiKey(_apiKey.value)
@@ -241,5 +271,76 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
             ToolType.BRAINSTORM -> "أنت مستشار ابتكار واستراتيجية. ولد 5 أفكار مبتكرة واستثنائية مع خطوات التنفيذ."
         }
         return geminiRepo.generateToolResult(input, sysPrompt, emptyList(), _temperature.value)
+    }
+
+    // --- Image Generation & Editing Methods ---
+
+    fun setImageGenPrompt(prompt: String) {
+        _imageGenState.value = _imageGenState.value.copy(prompt = prompt, errorMessage = null)
+    }
+
+    fun setImageGenInputBitmap(bitmap: Bitmap?) {
+        _imageGenState.value = _imageGenState.value.copy(inputBitmap = bitmap, errorMessage = null)
+    }
+
+    fun setImageGenAspectRatio(ratio: String) {
+        _imageGenState.value = _imageGenState.value.copy(aspectRatio = ratio)
+    }
+
+    fun setImageGenSize(size: String) {
+        _imageGenState.value = _imageGenState.value.copy(imageSize = size)
+    }
+
+    fun clearImageGenError() {
+        _imageGenState.value = _imageGenState.value.copy(errorMessage = null, successMessage = null)
+    }
+
+    fun generateOrEditImage() {
+        val currentState = _imageGenState.value
+        val prompt = currentState.prompt.trim()
+
+        if (prompt.isBlank()) {
+            _imageGenState.value = currentState.copy(errorMessage = "يرجى كتابة وصف للصورة أولاً.")
+            return
+        }
+
+        _imageGenState.value = currentState.copy(
+            isLoading = true,
+            errorMessage = null,
+            successMessage = null
+        )
+
+        viewModelScope.launch {
+            val result = geminiRepo.generateOrEditImage(
+                prompt = prompt,
+                inputBitmap = currentState.inputBitmap,
+                aspectRatio = currentState.aspectRatio,
+                imageSize = currentState.imageSize
+            )
+
+            if (result.bitmap != null) {
+                val newHistoryItem = GeneratedImageItem(
+                    prompt = prompt,
+                    bitmap = result.bitmap,
+                    base64 = result.base64,
+                    description = result.description,
+                    isEdited = currentState.inputBitmap != null
+                )
+
+                _imageGenState.value = _imageGenState.value.copy(
+                    isLoading = false,
+                    generatedBitmap = result.bitmap,
+                    generatedBase64 = result.base64,
+                    generatedDescription = result.description,
+                    successMessage = if (currentState.inputBitmap != null) "تم تعديل الصورة بنجاح عبر Gemini 3.1 Flash Image" else "تم إنشاء الصورة بنجاح عبر Gemini 3.1 Flash Image",
+                    history = listOf(newHistoryItem) + _imageGenState.value.history
+                )
+            } else {
+                _imageGenState.value = _imageGenState.value.copy(
+                    isLoading = false,
+                    errorMessage = result.error ?: "تعذر إنشاء الصورة، يرجى المحاولة مرة أخرى."
+                )
+            }
+        }
     }
 }

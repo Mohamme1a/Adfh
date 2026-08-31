@@ -49,7 +49,17 @@ export interface PromptTemplate {
   icon: string;
 }
 
-export type ActiveTab = "chat" | "tools" | "library";
+export type ActiveTab = "chat" | "image" | "tools" | "library";
+
+export interface GeneratedImageRecord {
+  id: string;
+  prompt: string;
+  imageUrl: string;
+  description?: string;
+  timestamp: number;
+  isEdited?: boolean;
+  aspectRatio?: string;
+}
 
 export type ToolType = 
   | "rewrite"

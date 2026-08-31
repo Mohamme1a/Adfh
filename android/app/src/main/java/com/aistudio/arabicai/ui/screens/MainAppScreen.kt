@@ -113,6 +113,11 @@ fun MainAppScreen(
                             tts = tts
                         )
                     }
+                    AppTab.IMAGE_GEN -> {
+                        ImageGenScreen(
+                            viewModel = viewModel
+                        )
+                    }
                     AppTab.TOOLS -> {
                         ToolsScreen(
                             onExecuteTool = { tool, input, opt ->

@@ -1,6 +1,7 @@
 package com.aistudio.arabicai.data.repository
 
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.util.Base64
 import android.util.Log
 import com.aistudio.arabicai.data.model.AttachedImage
@@ -23,19 +24,27 @@ import java.io.InputStreamReader
 import java.nio.charset.StandardCharsets
 import java.util.concurrent.TimeUnit
 
+data class GeneratedImageResult(
+    val bitmap: Bitmap? = null,
+    val base64: String? = null,
+    val description: String? = null,
+    val error: String? = null
+)
+
 class GeminiRepository(
     private var apiKey: String = ""
 ) {
     companion object {
-        const val DEFAULT_MODEL = "gemini-3.6-flash"
+        const val DEFAULT_CHAT_MODEL = "gemini-3.6-flash"
+        const val IMAGE_MODEL = "gemini-3.1-flash-image"
         private const val BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models"
         private const val TAG = "GeminiRepository"
     }
 
     private val httpClient = OkHttpClient.Builder()
-        .connectTimeout(30, TimeUnit.SECONDS)
-        .readTimeout(60, TimeUnit.SECONDS)
-        .writeTimeout(60, TimeUnit.SECONDS)
+        .connectTimeout(45, TimeUnit.SECONDS)
+        .readTimeout(90, TimeUnit.SECONDS)
+        .writeTimeout(90, TimeUnit.SECONDS)
         .build()
 
     fun setApiKey(newKey: String) {
@@ -52,7 +61,7 @@ class GeminiRepository(
         messages: List<Message>,
         systemInstruction: String,
         temperature: Float = 0.7f,
-        modelName: String = DEFAULT_MODEL
+        modelName: String = DEFAULT_CHAT_MODEL
     ): Flow<String> = flow {
         val currentKey = apiKey.trim()
         if (currentKey.isBlank()) {
@@ -186,6 +195,144 @@ class GeminiRepository(
     }.flowOn(Dispatchers.IO)
 
     /**
+     * Generate or Edit image using Gemini 3.1 Flash Image (Nano Banana 2).
+     */
+    suspend fun generateOrEditImage(
+        prompt: String,
+        inputBitmap: Bitmap? = null,
+        aspectRatio: String = "1:1",
+        imageSize: String = "1K",
+        modelName: String = IMAGE_MODEL
+    ): GeneratedImageResult = withContext(Dispatchers.IO) {
+        val currentKey = apiKey.trim()
+        if (currentKey.isBlank()) {
+            return@withContext GeneratedImageResult(
+                error = "⚠️ يرجى إدخال مفتاح Gemini API Key في شاشة الإعدادات لإنشاء وتعديل الصور."
+            )
+        }
+
+        if (prompt.isBlank()) {
+            return@withContext GeneratedImageResult(
+                error = "يرجى كتابة وصف للصورة المطلوبة أولاً."
+            )
+        }
+
+        try {
+            val url = "$BASE_URL/$modelName:generateContent?key=$currentKey"
+
+            val requestJson = JSONObject()
+
+            // Generation config with imageConfig
+            val genConfig = JSONObject()
+            val imgConfig = JSONObject()
+            imgConfig.put("aspectRatio", aspectRatio)
+            imgConfig.put("imageSize", imageSize)
+            genConfig.put("imageConfig", imgConfig)
+            requestJson.put("generationConfig", genConfig)
+
+            // Contents array
+            val contentsArray = JSONArray()
+            val contentObj = JSONObject()
+            contentObj.put("role", "user")
+            val partsArray = JSONArray()
+
+            // If base image provided for editing
+            if (inputBitmap != null) {
+                val base64Input = bitmapToBase64(inputBitmap)
+                if (base64Input.isNotEmpty()) {
+                    val inlineData = JSONObject()
+                    inlineData.put("mimeType", "image/jpeg")
+                    inlineData.put("data", base64Input)
+                    partsArray.put(JSONObject().put("inlineData", inlineData))
+                }
+            }
+
+            // Prompt text
+            partsArray.put(JSONObject().put("text", prompt.trim()))
+
+            contentObj.put("parts", partsArray)
+            contentsArray.put(contentObj)
+            requestJson.put("contents", contentsArray)
+
+            val mediaType = "application/json; charset=utf-8".toMediaType()
+            val requestBody = requestJson.toString().toRequestBody(mediaType)
+
+            val request = Request.Builder()
+                .url(url)
+                .post(requestBody)
+                .addHeader("User-Agent", "ArabicAIStudio-Android")
+                .build()
+
+            httpClient.newCall(request).execute().use { response ->
+                val responseBodyStr = response.body?.string() ?: ""
+
+                if (!response.isSuccessful) {
+                    val errorMsg = parseApiError(response.code, responseBodyStr)
+                    return@withContext GeneratedImageResult(error = errorMsg)
+                }
+
+                val rootJson = JSONObject(responseBodyStr)
+                val candidates = rootJson.optJSONArray("candidates")
+                if (candidates != null && candidates.length() > 0) {
+                    val candidate = candidates.optJSONObject(0)
+                    val content = candidate?.optJSONObject("content")
+                    val parts = content?.optJSONArray("parts")
+
+                    var generatedBmp: Bitmap? = null
+                    var generatedBase64: String? = null
+                    val textDescBuilder = StringBuilder()
+
+                    if (parts != null) {
+                        for (i in 0 until parts.length()) {
+                            val part = parts.optJSONObject(i) ?: continue
+                            val inlineData = part.optJSONObject("inlineData")
+                            if (inlineData != null) {
+                                val rawBase64 = inlineData.optString("data", "")
+                                if (rawBase64.isNotEmpty()) {
+                                    generatedBase64 = rawBase64
+                                    try {
+                                        val decodedBytes = Base64.decode(rawBase64, Base64.DEFAULT)
+                                        generatedBmp = BitmapFactory.decodeByteArray(decodedBytes, 0, decodedBytes.size)
+                                    } catch (e: Exception) {
+                                        Log.e(TAG, "Failed to decode generated image bytes", e)
+                                    }
+                                }
+                            }
+
+                            val textPart = part.optString("text", "")
+                            if (textPart.isNotEmpty()) {
+                                textDescBuilder.append(textPart)
+                            }
+                        }
+                    }
+
+                    if (generatedBmp != null) {
+                        return@withContext GeneratedImageResult(
+                            bitmap = generatedBmp,
+                            base64 = generatedBase64,
+                            description = textDescBuilder.toString().ifEmpty { null }
+                        )
+                    } else {
+                        val desc = textDescBuilder.toString()
+                        return@withContext GeneratedImageResult(
+                            error = if (desc.isNotEmpty()) desc else "لم يتم العثور على صورة في استجابة النموذج، يرجى المحاولة مرة أخرى."
+                        )
+                    }
+                }
+
+                return@withContext GeneratedImageResult(
+                    error = "استجابة غير متوقعة من خادم توليد الصور."
+                )
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Image generation error", e)
+            GeneratedImageResult(
+                error = "حدث خطأ أثناء إنشاء الصورة: ${e.localizedMessage ?: e.message}"
+            )
+        }
+    }
+
+    /**
      * Non-streaming tool execution with gemini-3.6-flash.
      */
     suspend fun generateToolResult(
@@ -193,7 +340,7 @@ class GeminiRepository(
         systemInstruction: String,
         images: List<Bitmap> = emptyList(),
         temperature: Float = 0.7f,
-        modelName: String = DEFAULT_MODEL
+        modelName: String = DEFAULT_CHAT_MODEL
     ): String = withContext(Dispatchers.IO) {
         val currentKey = apiKey.trim()
         if (currentKey.isBlank()) {
@@ -300,7 +447,7 @@ class GeminiRepository(
         return when (statusCode) {
             400 -> "خطأ في صياغة الطلب (400): ${if (serverMsg.isNotBlank()) serverMsg else "يرجى التحقق من المدخلات أو صحة المفتاح"}"
             403 -> "مفتاح API غير صالح أو غير مصرح له (403 Forbidden): يرجى مراجعة المفتاح في الإعدادات."
-            404 -> "النموذج غير متوفر (404 Not Found): تم استخدام gemini-3.6-flash. تفاصيل: $serverMsg"
+            404 -> "النموذج غير متوفر (404 Not Found): يرجى التأكد من توفر الموديل المطلوب لحسابك. تفاصيل: $serverMsg"
             429 -> "تم تجاوز حد الطلبات المسموح به (429 Quota Exceeded): يرجى الانتظار دقيقة أو التحقق من حصة الحساب."
             500, 503 -> "الخادم غير متاح مؤقتاً ($statusCode): يرجى المحاولة بعد قليل."
             else -> "فشل الطلب ($statusCode): ${if (serverMsg.isNotBlank()) serverMsg else "يرجى المحاولة مجدداً"}"

@@ -11,6 +11,7 @@ import { Navbar } from "./components/Navbar";
 import { Sidebar } from "./components/Sidebar";
 import { ChatView } from "./components/ChatView";
 import { ToolsView } from "./components/ToolsView";
+import { ImageStudio } from "./components/ImageStudio";
 import { PromptsLibraryModal } from "./components/PromptsLibraryModal";
 
 const STORAGE_KEY_SESSIONS = "ai_app_chat_sessions_v1";
@@ -475,6 +476,20 @@ export default function App() {
               onStopStreaming={handleStopStreaming}
               onOpenLibrary={() => setShowPromptsLibrary(true)}
               onRetryLastMessage={handleRetryLastMessage}
+            />
+          )}
+
+          {activeTab === "image" && (
+            <ImageStudio
+              onSendToChat={(text, imageBase64) => {
+                setActiveTab("chat");
+                const attachedImgs = imageBase64 ? [{
+                  id: `img_${Date.now()}`,
+                  data: imageBase64.replace(/^data:image\/\w+;base64,/, ""),
+                  mimeType: "image/png"
+                }] : undefined;
+                handleSendMessage(text, attachedImgs);
+              }}
             />
           )}
 

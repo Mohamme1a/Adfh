@@ -20,6 +20,7 @@ import com.aistudio.arabicai.ui.theme.*
 
 enum class AppTab(val title: String) {
     CHAT("المحادثة"),
+    IMAGE_GEN("توليد الصور"),
     TOOLS("الأدوات"),
     LIBRARY("المكتبة")
 }

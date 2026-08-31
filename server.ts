@@ -242,6 +242,86 @@ async function startServer() {
     }
   });
 
+  // Image Generation & Editing Endpoint with Gemini 3.1 Flash Image (Nano Banana 2)
+  app.post("/api/image/generate", async (req, res) => {
+    try {
+      const {
+        prompt,
+        imageBase64,
+        mimeType = "image/jpeg",
+        aspectRatio = "1:1",
+        imageSize = "1K",
+      } = req.body;
+
+      if (!prompt || typeof prompt !== "string" || prompt.trim() === "") {
+        return res.status(400).json({ error: "وصف الصورة مطلوب (Prompt is required)" });
+      }
+
+      const ai = getGenAI();
+
+      const parts: any[] = [];
+      if (imageBase64) {
+        let cleanBase64 = imageBase64;
+        if (cleanBase64.includes(",")) {
+          cleanBase64 = cleanBase64.split(",")[1];
+        }
+        parts.push({
+          inlineData: {
+            data: cleanBase64,
+            mimeType: mimeType || "image/jpeg",
+          },
+        });
+      }
+
+      parts.push({ text: prompt.trim() });
+
+      const response = await ai.models.generateContent({
+        model: "gemini-3.1-flash-image",
+        contents: {
+          parts,
+        },
+        config: {
+          imageConfig: {
+            aspectRatio: aspectRatio || "1:1",
+            imageSize: imageSize || "1K",
+          },
+        },
+      });
+
+      let generatedImageData: string | null = null;
+      let textDescription: string = "";
+
+      const candidate = response.candidates?.[0];
+      if (candidate?.content?.parts) {
+        for (const part of candidate.content.parts) {
+          if (part.inlineData?.data) {
+            const mime = part.inlineData.mimeType || "image/png";
+            generatedImageData = `data:${mime};base64,${part.inlineData.data}`;
+          } else if (part.text) {
+            textDescription += part.text;
+          }
+        }
+      }
+
+      if (!generatedImageData) {
+        return res.status(500).json({
+          error: "لم يقم النموذج بإرجاع صورة صالحة. يرجى تجربة وصف آخر.",
+          textDescription,
+        });
+      }
+
+      res.json({
+        imageUrl: generatedImageData,
+        description: textDescription,
+        model: "gemini-3.1-flash-image",
+      });
+    } catch (error: any) {
+      console.error("Image Generation API Error:", error);
+      const errorMessage = error?.message || "فشل إنشاء الصورة عبر الذكاء الاصطناعي";
+      res.status(500).json({ error: errorMessage });
+    }
+  });
+
   // Vite middleware setup
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({

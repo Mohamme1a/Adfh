@@ -4,6 +4,7 @@ import {
   Sparkles,
   Menu,
   MessageSquare,
+  Palette,
   Wrench,
   BookMarked,
   Download,
@@ -69,6 +70,8 @@ export function Navbar({
             <p className="text-[11px] text-slate-400 hidden sm:block truncate max-w-[200px] md:max-w-xs">
               {activeTab === "chat"
                 ? selectedPersona.name
+                : activeTab === "image"
+                ? "استوديو الصور (Gemini 3.1 Flash Image)"
                 : activeTab === "tools"
                 ? "استوديو الأدوات التخصصية"
                 : "مكتبة الأوامر الجاهزة"}
@@ -90,6 +93,19 @@ export function Navbar({
         >
           <MessageSquare className="w-3.5 h-3.5" />
           <span>المحادثة الذكية</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => onChangeTab("image")}
+          className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg font-medium transition-all ${
+            activeTab === "image"
+              ? "bg-indigo-600 text-white shadow-sm shadow-indigo-600/30"
+              : "text-slate-400 hover:text-slate-200 hover:bg-slate-850"
+          }`}
+        >
+          <Palette className="w-3.5 h-3.5" />
+          <span>توليد وتعديل الصور</span>
         </button>
 
         <button
