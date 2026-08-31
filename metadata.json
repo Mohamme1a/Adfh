@@ -1,0 +1,6 @@
+{
+  "name": "تطبيق الذكاء الاصطناعي - AI Studio",
+  "description": "منصة ذكية متكاملة للمحادثة التفاعلية، كتابة المحتوى، تلخيص النصوص، تحليل الصور، والبرمجة المدعومة بالذكاء الاصطناعي",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,10 @@
+<resources>
+    <string name="app_name">تطبيق الذكاء الاصطناعي</string>
+    <string name="chat_title">المحادثة الذكية</string>
+    <string name="tools_title">أدوات الذكاء</string>
+    <string name="library_title">مكتبة الأوامر</string>
+    <string name="new_chat">محادثة جديدة</string>
+    <string name="type_message_placeholder">اكتب رسالتك أو استفسارك هنا...</string>
+    <string name="send">إرسال</string>
+    <string name="stop">إيقاف</string>
+</resources>
