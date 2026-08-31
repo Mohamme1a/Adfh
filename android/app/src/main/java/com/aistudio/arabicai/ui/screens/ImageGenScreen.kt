@@ -556,7 +556,7 @@ fun ImageGenScreen(
                             // Share Button
                             IconButton(
                                 onClick = {
-                                    shareImage(context, state.generatedBitmap!, state.prompt)
+                                    shareImage(context, state.generatedBitmap!!, state.prompt)
                                 },
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(10.dp))
