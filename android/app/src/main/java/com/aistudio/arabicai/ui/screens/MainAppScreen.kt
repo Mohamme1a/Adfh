@@ -139,8 +139,8 @@ fun MainAppScreen(
 
     // Settings Dialog
     if (showSettingsDialog) {
-        var tempKey by remember { mutableStateOf(apiKey) }
-        var tempSlider by remember { mutableStateOf(temperature) }
+        var tempKey by remember(apiKey) { mutableStateOf(apiKey) }
+        var tempSlider by remember(temperature) { mutableStateOf(temperature) }
 
         Dialog(onDismissRequest = { showSettingsDialog = false }) {
             Surface(

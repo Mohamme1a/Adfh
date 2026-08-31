@@ -66,6 +66,7 @@ dependencies {
     implementation(libs.androidx.navigation.compose)
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.google.generativeai)
+    implementation(libs.okhttp)
     implementation(libs.coil.compose)
 
     // Room Database
