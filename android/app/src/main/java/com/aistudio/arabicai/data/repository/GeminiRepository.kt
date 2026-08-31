@@ -27,7 +27,7 @@ class GeminiRepository(
     private var apiKey: String = ""
 ) {
     companion object {
-        const val DEFAULT_MODEL = "gemini-2.5-flash"
+        const val DEFAULT_MODEL = "gemini-3.6-flash"
         private const val BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models"
         private const val TAG = "GeminiRepository"
     }
@@ -45,7 +45,7 @@ class GeminiRepository(
     fun getApiKey(): String = apiKey
 
     /**
-     * Generate text with Server-Sent Events (SSE) stream using gemini-2.5-flash.
+     * Generate text with Server-Sent Events (SSE) stream using gemini-3.6-flash.
      * Uses robust JSON parsing to prevent Kotlin Serialization MissingFieldException.
      */
     fun generateStream(
@@ -186,7 +186,7 @@ class GeminiRepository(
     }.flowOn(Dispatchers.IO)
 
     /**
-     * Non-streaming tool execution with gemini-2.5-flash.
+     * Non-streaming tool execution with gemini-3.6-flash.
      */
     suspend fun generateToolResult(
         prompt: String,
@@ -300,7 +300,7 @@ class GeminiRepository(
         return when (statusCode) {
             400 -> "خطأ في صياغة الطلب (400): ${if (serverMsg.isNotBlank()) serverMsg else "يرجى التحقق من المدخلات أو صحة المفتاح"}"
             403 -> "مفتاح API غير صالح أو غير مصرح له (403 Forbidden): يرجى مراجعة المفتاح في الإعدادات."
-            404 -> "النموذج غير متوفر (404 Not Found): تم تحديث التطبيق إلى gemini-2.5-flash. تفاصيل: $serverMsg"
+            404 -> "النموذج غير متوفر (404 Not Found): تم استخدام gemini-3.6-flash. تفاصيل: $serverMsg"
             429 -> "تم تجاوز حد الطلبات المسموح به (429 Quota Exceeded): يرجى الانتظار دقيقة أو التحقق من حصة الحساب."
             500, 503 -> "الخادم غير متاح مؤقتاً ($statusCode): يرجى المحاولة بعد قليل."
             else -> "فشل الطلب ($statusCode): ${if (serverMsg.isNotBlank()) serverMsg else "يرجى المحاولة مجدداً"}"

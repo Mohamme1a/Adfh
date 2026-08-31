@@ -63,7 +63,7 @@ export function Navbar({
             <h1 className="font-bold text-sm sm:text-base text-slate-100 flex items-center gap-2 leading-tight">
               <span>تطبيق الذكاء الاصطناعي</span>
               <span className="hidden sm:inline-flex text-[10px] font-semibold px-2 py-0.5 rounded-full bg-indigo-950 text-indigo-300 border border-indigo-800/60">
-                PRO 3.7
+                FLASH 3.6
               </span>
             </h1>
             <p className="text-[11px] text-slate-400 hidden sm:block truncate max-w-[200px] md:max-w-xs">
@@ -206,7 +206,7 @@ export function Navbar({
             <div className="absolute left-0 mt-2 w-64 bg-slate-900 border border-slate-800 rounded-xl shadow-2xl p-4 z-50 text-xs space-y-4">
               <div className="flex items-center justify-between border-b border-slate-800 pb-2">
                 <span className="font-bold text-slate-200">إعدادات الذكاء الاصطناعي</span>
-                <span className="text-[10px] text-indigo-400 font-mono">Gemini 3.7</span>
+                <span className="text-[10px] text-indigo-400 font-mono">Gemini 3.6 Flash</span>
               </div>
 
               {/* Temperature Slider */}
